@@ -1,0 +1,6 @@
+0.0.0:
+  Initial implementation. Includes support for combos, TAP and HOLD style presses,
+  locked and oneshot modifiers. Includes ARTSEYIO left-handed keymap for keyboard
+  CHARACTERS only. So not mouse, nav, media, or function keys. Layer changes are
+  lock only.
+	
