@@ -1,13 +1,14 @@
-//https://github.com/adafruit/Adafruit_nRF52_Arduino/blob/master/libraries/Bluefruit52Lib/examples/Peripheral/hid_keyboard/hid_keyboard.ino
+// https://github.com/adafruit/Adafruit_nRF52_Arduino/blob/master/libraries/Bluefruit52Lib/examples/Peripheral/hid_keyboard/hid_keyboard.ino
+// https://github.com/artseyio/artsey
 #include <bluefruit.h>
 #include "bluetooth.h"
 
 
 /* ============================== user configuration ============================== */
 // bool mode_left = true;  // lefthanded or no
-int press_delay = 10;    // wait 10ms after the initial press before reading the state of the keyboard
-int release_delay = 10;  // wait for 10 ms after all keys are released
-int poll_delay_ms = 0;
+int press_delay = 50;   // wait N ms after the initial press before reading the state of the keys
+int release_delay = 0;  // wait N ms after release
+int poll_delay_ms = 0;  // wait N ms every tick
 
 // maps pins (the elements) to their corresponding values (the indicies of a keymap)
 int pins[8] = {11, 7, 15, 16, // <--- left handed
@@ -49,15 +50,51 @@ int send_key(Combo combo) {
 }
 
 int accumulate_modifier(Combo combo) {
+  /* Apply combo modifier to the next key press. */
   current_modifier |= combo.modifier;
   return 0;
 }
 
 int toggle_modifier(Combo combo) {
+  /* Apply modifier to every key press, or not. */
   current_modifier_locked ^= combo.modifier;
   return 0;
 }
 
+#define MSTEP 50
+int mouse_move_up(Combo combo) {
+  blehid.mouseMove(0, -MSTEP);
+  return 0;
+}
+int mouse_move_left(Combo combo) {
+  blehid.mouseMove(-MSTEP, 0);
+  return 0;
+}
+int mouse_move_down(Combo combo) {
+  blehid.mouseMove(0, MSTEP);
+  return 0;
+}
+int mouse_move_right(Combo combo) {
+  blehid.mouseMove(MSTEP, 0);
+  return 0;
+}
+// TODO
+int mouse_scroll_up(Combo combo) {
+  return 0;
+}
+int mouse_scroll_down(Combo combo) {
+  return 0;
+}
+int mouse_click_left(Combo combo) {
+  blehid.mouseButtonPress(MOUSE_BUTTON_LEFT);
+  blehid.mouseButtonRelease();
+  return 0;
+}
+int mouse_click_right(Combo combo) {
+  blehid.mouseButtonPress(MOUSE_BUTTON_RIGHT);
+  blehid.mouseButtonRelease();
+  return 0;
+}
 
 struct Combo layer_numbers[] = {
   {254, TAP, HID_KEY_1,            NULL,                        send_key},
@@ -98,6 +135,32 @@ struct Combo layer_symbols[] = {
 };
 int layer_symbols_len = sizeof layer_symbols / sizeof layer_symbols[0];
 
+struct Combo layer_navigation[] = {
+  {254, TAP, HID_KEY_END,          NULL,                        send_key},
+  {253, TAP, HID_KEY_ARROW_UP,     NULL,                        send_key},
+  {251, TAP, HID_KEY_HOME,         NULL,                        send_key},
+  {247, TAP, HID_KEY_PAGE_UP,      NULL,                        send_key},
+  {239, TAP, HID_KEY_ARROW_RIGHT,  NULL,                        send_key},
+  {223, TAP, HID_KEY_ARROW_DOWN,   NULL,                        send_key},
+  {191, TAP, HID_KEY_ARROW_LEFT,   NULL,                        send_key},
+  {173, TAP, HID_KEY_NONE,         NULL,                        set_layer_primary},
+  {127, TAP, HID_KEY_PAGE_DOWN,    NULL,                        send_key},
+};
+int layer_navigation_len = sizeof layer_navigation / sizeof layer_navigation[0];
+
+struct Combo layer_mouse[] = {
+  {254, TAP, HID_KEY_NONE,         NULL,                        mouse_click_left},
+  {253, TAP, HID_KEY_NONE,         NULL,                        mouse_move_up},
+  {251, TAP, HID_KEY_NONE,         NULL,                        mouse_click_right},
+  {247, TAP, HID_KEY_NONE,         NULL,                        mouse_scroll_up},
+  {239, TAP, HID_KEY_NONE,         NULL,                        mouse_move_right},
+  {223, TAP, HID_KEY_NONE,         NULL,                        mouse_move_down},
+  {218, TAP, HID_KEY_NONE,         NULL,                        set_layer_primary},
+  {191, TAP, HID_KEY_NONE,         NULL,                        mouse_move_left},
+  {127, TAP, HID_KEY_NONE,         NULL,                        mouse_scroll_up},
+};
+int layer_mouse_len = sizeof layer_mouse / sizeof layer_mouse[0];
+
 struct Combo layer_primary[] = {
   {254, TAP, HID_KEY_A,            NULL,			                  send_key},
   {254, HOLD, HID_KEY_A,           NULL,                        set_layer_brackets},
@@ -123,6 +186,7 @@ struct Combo layer_primary[] = {
   {223, TAP, HID_KEY_Y,            NULL,			                  send_key},
   {222, TAP, HID_KEY_COMMA,        NULL,			                  send_key},
   {221, TAP, HID_KEY_NONE,         KEYBOARD_MODIFIER_LEFTSHIFT, toggle_modifier},
+  {218, TAP, HID_KEY_NONE,         NULL,                        set_layer_mouse},
   {215, TAP, HID_KEY_NONE,         KEYBOARD_MODIFIER_LEFTGUI,   accumulate_modifier},
   {207, TAP, HID_KEY_C,            NULL,			                  send_key},
   {191, TAP, HID_KEY_I,            NULL,			                  send_key},
@@ -131,6 +195,7 @@ struct Combo layer_primary[] = {
   {187, TAP, HID_KEY_1,            KEYBOARD_MODIFIER_LEFTSHIFT, send_key},  // !
   {183, TAP, HID_KEY_NONE,         KEYBOARD_MODIFIER_LEFTALT,   accumulate_modifier},
   {175, TAP, HID_KEY_H,            NULL,			                  send_key},
+  {173, TAP, HID_KEY_NONE,         NULL,                        set_layer_navigation},
   {159, TAP, HID_KEY_U,            NULL,			                  send_key},
   {158, TAP, HID_KEY_APOSTROPHE,   NULL,			                  send_key},
   {143, TAP, HID_KEY_L,            NULL,			                  send_key},
@@ -149,26 +214,44 @@ struct Combo layer_primary[] = {
 int layer_primary_len = sizeof layer_primary / sizeof layer_primary[0];
 
 int set_layer_primary(Combo combo) {
+  /* Set current layer to primary ( artseyio ) */
   current_layer_ptr = layer_primary;
   current_layer_len = layer_primary_len;
   return 0;
 }
 
 int set_layer_numbers(Combo combo) {
+  /* Set current layer to numbers ( 1234567890 ) */
   current_layer_ptr = layer_numbers;
   current_layer_len = layer_numbers_len;
   return 0;
 }
 
 int set_layer_brackets(Combo combo) {
+  /* Set current layer to brackets ( []{}() ) */
   current_layer_ptr = layer_brackets;
   current_layer_len = layer_brackets_len;
   return 0;
 }
 
 int set_layer_symbols(Combo combo) {
+  /* Set current layer to symbols ( !\;~?-= ) */
   current_layer_ptr = layer_symbols;
   current_layer_len = layer_symbols_len;
+  return 0;
+}
+
+int set_layer_navigation(Combo combo) {
+  /* Set current layer to navigation ( arrow keys, pgup/down, home, end ) */
+  current_layer_ptr = layer_navigation;
+  current_layer_len = layer_navigation_len;
+  return 0;
+}
+
+int set_layer_mouse(Combo combo) {
+  /* Set current layer to mouse ( mouse u/d/l/r, button l/r, scroll u/d ) */
+  current_layer_ptr = layer_mouse;
+  current_layer_len = layer_mouse_len;
   return 0;
 }
 
@@ -182,7 +265,7 @@ void ble_press_key(uint8_t keycode, uint8_t modifier) {
     blehid.keyboardReport(modifier, report_code);
     delay(5); // delay for a bit after report
     blehid.keyRelease();
-    delay(5);
+    //delay(5);
     //delay(5);
 }
 
@@ -208,6 +291,7 @@ uint8_t get_keyboard_state(int pinmap[8]) {
 
 
 Combo keycode_to_combo(uint8_t keycode, PRESS_TYPE press_type) {
+  /* Try to find combo that matches keycode in the current_layer */
   // Serial.println(current_layer_len);
   for (int i=0; i < current_layer_len; i++) {
     // Combo combo = current_layer[i];
@@ -240,12 +324,12 @@ unsigned long press_start_time;
 uint8_t active_code = 0;
 
 
-void loop() {
+void tick() {
   uint8_t code_in = get_keyboard_state(pins);
   if (code_in < 255) { // 255 means no keys are pressed
     Serial.println("=====================================");
-    Serial.print("State of the pins: ");
-    Serial.println(code_in, BIN);
+    // Serial.print("State of the pins: ");
+    // Serial.println(code_in, BIN);
     Serial.print("Pincode: ");
     Serial.println(code_in);
 
@@ -264,7 +348,7 @@ void loop() {
     if (is_key_pressed == true) {
       unsigned long press_time = millis() - press_start_time; // how long of a keypress
       PRESS_TYPE press_type = TAP;
-      if (press_time >= 600) {
+      if (press_time >= 1000) { // one second
         press_type = HOLD;
       }
       press_start_time = 0;
@@ -280,4 +364,9 @@ void loop() {
   // blehid.keyboardReport(HID_KEY_NONE);
   blehid.keyRelease();
   delay(poll_delay_ms);
+}
+
+
+void loop() {
+  tick();
 }

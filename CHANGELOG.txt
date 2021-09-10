@@ -1,3 +1,6 @@
+0.0.1:
+  Added navigation and mouse layers.
+
 0.0.0:
   Initial implementation. Includes support for combos, TAP and HOLD style presses,
   locked and oneshot modifiers. Includes ARTSEYIO left-handed keymap for keyboard

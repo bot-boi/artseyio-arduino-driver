@@ -7,12 +7,17 @@ void startAdv(void)
 {  
   // Advertising packet
   Bluefruit.begin();
+  Bluefruit.Periph.setConnInterval(9, 16);
   Bluefruit.setTxPower(4);
   Bluefruit.Advertising.addFlags(BLE_GAP_ADV_FLAGS_LE_ONLY_GENERAL_DISC_MODE);
   Bluefruit.Advertising.addTxPower();
   Bluefruit.Advertising.addAppearance(BLE_APPEARANCE_HID_KEYBOARD);
+  Bluefruit.Advertising.addAppearance(BLE_APPEARANCE_HID_MOUSE);
   bledis.setManufacturer("Adafruit Industries");
   bledis.setModel("Bluefruit Feather 52");
+  bledis.setHardwareRev("0.0.1");
+  bledis.setSoftwareRev("0.0.1");
+  bledis.setManufacturer("blu3cereal");
   bledis.begin();
   // Include BLE HID service
   Bluefruit.Advertising.addService(blehid);
